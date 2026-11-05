@@ -1,0 +1,709 @@
+<!doctype html>
+<!-- CAS Supplier Search · Copyright (c) 2026 Quentin Bindschaedler · MIT License · https://github.com/Schoenebeck-Lab/Cas-Supplier-Search-Public -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CAS Supplier Search</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+  /* Layout: one 42rem column: a form card (CAS number, purity, suppliers), then one full-width row per supplier. */
+  :root {
+    --bg: #f2f4f6;
+    --surface: #ffffff;
+    --field: #f7f8fa;
+    --ink: #17202a;
+    --muted: #586472;
+    --line: #d3d9df;
+    --accent: #a14d0a;       /* amber reagent glass */
+    --accent-ink: #ffffff;
+    --accent-soft: #f8ebdc;
+    --ok: #1d7448;
+    --bad: #b3261e;
+    --font-display: "Bahnschrift", "DIN Alternate", "Roboto Condensed", "Arial Narrow", sans-serif;
+    --font-body: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-data: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, "Liberation Mono", monospace;
+    --radius: 6px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #12181f; --surface: #1a222b; --field: #141b23; --ink: #e4e9ee; --muted: #98a4b0; --line: #2c3743;
+      --accent: #f0a356; --accent-ink: #12181f; --accent-soft: #3a2b1c; --ok: #5cc28f; --bad: #f28b82;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #12181f; --surface: #1a222b; --field: #141b23; --ink: #e4e9ee; --muted: #98a4b0; --line: #2c3743;
+    --accent: #f0a356; --accent-ink: #12181f; --accent-soft: #3a2b1c; --ok: #5cc28f; --bad: #f28b82;
+    color-scheme: dark;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 1rem/1.5 var(--font-body); }
+  .page {
+    max-width: 42rem; margin: 0 auto; display: grid; gap: 1.75rem;
+    padding-block: 2.5rem 3rem;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+  h1, h2 { margin: 0; font-family: var(--font-display); font-weight: 600; text-wrap: balance; }
+  h1 { font-size: clamp(1.9rem, 1.4rem + 2vw, 2.5rem); line-height: 1.1; letter-spacing: .01em; }
+  h2, .label { font-size: .78rem; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+  .lede { margin: .6rem 0 0; color: var(--muted); max-width: 36rem; }
+  p { margin: 0; }
+
+  .card { display: grid; gap: 1.1rem; padding: 1.25rem; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+  .fields { display: grid; grid-template-columns: minmax(0, 1fr) 9.5rem; gap: 1rem; }
+  .field { display: grid; gap: .35rem; min-width: 0; }
+  .label .opt { text-transform: none; letter-spacing: 0; font-weight: 400; }
+  input[type="text"] {
+    width: 100%; padding: .6rem .75rem; color: var(--ink); background: var(--field);
+    font: 500 1.35rem/1.2 var(--font-data); letter-spacing: .03em;
+    border: 1px solid var(--line); border-radius: var(--radius);
+  }
+  #cas { font-size: 1.6rem; }
+  input[type="text"]:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-color: var(--accent); }
+  .unit-wrap { position: relative; display: block; }
+  .unit-wrap input { padding-right: 2rem; }
+  .unit { position: absolute; right: .75rem; top: 50%; transform: translateY(-50%); color: var(--muted); font-family: var(--font-data); pointer-events: none; }
+  .status { min-height: 1.5em; font-size: .92rem; color: var(--muted); }
+  .status.ok { color: var(--ok); }
+  .status.bad { color: var(--bad); }
+  .hint { font-size: .85rem; color: var(--muted); }
+
+  fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
+  legend { padding: 0; margin-bottom: .5rem; }
+  .toggles { display: flex; flex-wrap: wrap; gap: .5rem; }
+  .toggle {
+    display: inline-flex; align-items: center; gap: .45rem; padding: .35rem .8rem .35rem .6rem;
+    font-size: .92rem; border: 1px solid var(--line); border-radius: 999px; cursor: pointer; user-select: none;
+  }
+  .toggle input { margin: 0; accent-color: var(--accent); }
+  .toggle:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+  .toggle:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .primary {
+    justify-self: start; padding: .8rem 1.3rem; cursor: pointer;
+    font: 600 1.05rem/1 var(--font-display); letter-spacing: .02em;
+    color: var(--accent-ink); background: var(--accent); border: 0; border-radius: var(--radius);
+  }
+  .primary:hover { filter: brightness(1.08); }
+  .primary:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+  .results { display: grid; gap: .75rem; }
+  .rows { display: grid; gap: .5rem; margin: 0; padding: 0; list-style: none; }
+  .row {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: .15rem 1rem;
+    padding: .85rem 1rem; color: var(--ink); text-decoration: none;
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+  }
+  a.row[href]:hover { border-color: var(--accent); }
+  a.row[href]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .row[aria-disabled="true"] { opacity: .55; cursor: not-allowed; }
+  .name { font-family: var(--font-display); font-size: 1.12rem; font-weight: 600; }
+  .meta { grid-column: 1; display: flex; flex-wrap: wrap; align-items: center; gap: .35rem .6rem; min-width: 0; }
+  .host { font: .8rem var(--font-data); color: var(--muted); overflow-wrap: anywhere; }
+  .terms { font-size: .8rem; font-weight: 600; }
+  .go { grid-column: 2; grid-row: 1 / span 2; font-weight: 600; color: var(--accent); white-space: nowrap; }
+  .row.opened .go { color: var(--muted); }
+  .chip { padding: .05rem .5rem; font-size: .75rem; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; }
+  .chip.on { color: var(--ok); border-color: var(--ok); }
+  .note { padding: .75rem 1rem; font-size: .92rem; background: var(--accent-soft); border: 1px solid var(--accent); border-radius: var(--radius); }
+  .empty { font-size: .92rem; color: var(--muted); }
+
+  details { display: grid; gap: .6rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+  summary { cursor: pointer; font-weight: 600; }
+  details p, details li { font-size: .92rem; }
+  details p { margin-top: .6rem; }
+  details ul { display: grid; gap: .45rem; margin: .6rem 0 0; padding-left: 1.2rem; }
+  .foot { padding-top: 1rem; font-size: .82rem; color: var(--muted); border-top: 1px solid var(--line); }
+  .foot p + p { margin-top: .4rem; }
+  .foot a { color: var(--accent); }
+
+  .actions, .batch-tools, .batch-nav { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem 1rem; }
+  .secondary {
+    display: inline-block; padding: .75rem 1.1rem; cursor: pointer;
+    font: 600 1rem/1 var(--font-display); color: var(--ink);
+    background: transparent; border: 1px solid var(--line); border-radius: var(--radius);
+  }
+  .secondary:hover:not(:disabled) { border-color: var(--accent); }
+  .secondary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  button:disabled { opacity: .5; cursor: not-allowed; filter: none; }
+  textarea {
+    width: 100%; min-height: 6rem; resize: vertical; padding: .6rem .75rem;
+    font: 1rem/1.45 var(--font-data); color: var(--ink); background: var(--field);
+    border: 1px dashed var(--line); border-radius: var(--radius);
+  }
+  textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  textarea.drop { border-color: var(--accent); background: var(--accent-soft); }
+  .file-pick { position: relative; overflow: hidden; }
+  .file-pick input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .file-pick:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .check { display: inline-flex; align-items: center; gap: .45rem; font-size: .92rem; }
+  .check input { margin: 0; accent-color: var(--accent); }
+  .pos { font: .95rem var(--font-data); font-variant-numeric: tabular-nums; color: var(--muted); }
+  .batch-list { display: flex; flex-wrap: wrap; gap: .4rem; max-height: 9.5rem; overflow-y: auto; margin: 0; padding: 0; list-style: none; }
+  .cas-chip {
+    padding: .2rem .65rem; cursor: pointer; font: .85rem var(--font-data); color: var(--ink);
+    background: var(--field); border: 1px solid var(--line); border-radius: 999px;
+  }
+  .cas-chip.seen { color: var(--muted); }
+  .cas-chip.current { color: var(--ink); background: var(--accent-soft); border-color: var(--accent); }
+
+  @media (max-width: 30rem) {
+    .fields { grid-template-columns: minmax(0, 1fr); }
+    .actions > button, .batch-nav > button { flex: 1 1 auto; }
+  }
+</style>
+
+<main class="page">
+  <header>
+    <h1>CAS Supplier Search</h1>
+    <p class="lede">Type a CAS number to open its search at every supplier at once. If you are logged in to a shop in this browser, its tab shows your contract prices.</p>
+  </header>
+
+  <form id="search" class="card" autocomplete="off" novalidate>
+    <div class="fields">
+      <div class="field">
+        <label class="label" for="cas">CAS number</label>
+        <input id="cas" type="text" inputmode="numeric" spellcheck="false" placeholder="62-53-3" aria-describedby="status" autofocus>
+      </div>
+      <div class="field">
+        <label class="label" for="purity">Purity <span class="opt">(optional)</span></label>
+        <span class="unit-wrap"><input id="purity" type="text" inputmode="decimal" spellcheck="false" placeholder="99.5" aria-describedby="purity-hint"><span class="unit">%</span></span>
+      </div>
+    </div>
+    <p id="status" class="status" aria-live="polite"></p>
+    <fieldset>
+      <legend class="label">Suppliers</legend>
+      <div id="shop-toggles" class="toggles"></div>
+    </fieldset>
+    <p id="purity-hint" class="hint"></p>
+    <fieldset>
+      <legend class="label">Open as</legend>
+      <div class="toggles">
+        <label class="toggle"><input type="radio" name="mode" id="mode-tabs" value="tabs" checked> Tabs in this window</label>
+        <label class="toggle"><input type="radio" name="mode" id="mode-windows" value="windows"> One window per shop</label>
+      </div>
+    </fieldset>
+    <div class="actions">
+      <button id="open-all" class="primary" type="submit">Open all searches</button>
+      <button id="close-all" class="secondary" type="button" disabled>Close opened searches</button>
+    </div>
+  </form>
+
+  <section class="card" aria-labelledby="batch-title">
+    <h2 id="batch-title">Work through a list</h2>
+    <p class="hint">Paste a column copied from Excel, or drop an .xlsx, .csv or .txt file on the box. Every CAS number in it is picked out and checked; then step through them one by one.</p>
+    <textarea id="batch-input" rows="4" spellcheck="false" placeholder="62-53-3&#10;7732-18-5&#10;64-17-5"></textarea>
+    <div class="batch-tools">
+      <label class="secondary file-pick">Choose a file<input id="batch-file" type="file" accept=".xlsx,.csv,.tsv,.txt"></label>
+      <label class="check"><input id="batch-close" type="checkbox" checked> Close the previous searches when moving on</label>
+    </div>
+    <p id="batch-status" class="status" aria-live="polite"></p>
+    <div class="batch-nav">
+      <button id="batch-prev" class="secondary" type="button" disabled>◀ Previous</button>
+      <span id="batch-pos" class="pos"></span>
+      <button id="batch-next" class="primary" type="button" disabled>Start ▶</button>
+    </div>
+    <ol id="batch-list" class="batch-list"></ol>
+  </section>
+
+  <section class="results" aria-labelledby="results-title">
+    <h2 id="results-title">Searches</h2>
+    <p id="popup-note" class="note" role="status" hidden></p>
+    <ul id="results" class="rows"></ul>
+  </section>
+
+  <details id="popup-help">
+    <summary>The button opened only one tab?</summary>
+    <p>Browsers let a page open one tab per click and block the others as pop-ups. Allow pop-ups for this page once:</p>
+    <ul>
+      <li><strong>Chrome and Edge:</strong> click the blocked pop-up icon at the right end of the address bar, choose “Always allow pop-ups and redirects”, click Done, then press the button again.</li>
+      <li><strong>Firefox:</strong> in the bar below the address bar (“Firefox prevented this site from opening … pop-up windows”), click Settings or Options, then “Allow pop-ups for …”.</li>
+      <li><strong>Safari:</strong> Safari › Settings › Websites › Pop-up Windows, and set this page to Allow.</li>
+    </ul>
+    <p>If your browser doesn’t offer to remember the choice, click the suppliers in the list one by one. Each click opens one search.</p>
+    <p>“Close opened searches” closes what this page opened since it was loaded; a shop that cuts its link to the page can’t be closed this way. “One window per shop” exists because a page can’t put several tabs into a new window.</p>
+  </details>
+
+  <footer class="foot">
+    <p>This page makes no requests of its own. It only opens the suppliers’ search pages in new tabs, in this browser, with your logins. A link ending in #62-53-3 opens it with that CAS number filled in.</p>
+    <p>CAS Supplier Search by Quentin Bindschaedler · MIT License · <a href="https://github.com/Schoenebeck-Lab/Cas-Supplier-Search-Public">Source code</a></p>
+  </footer>
+</main>
+
+<script type="application/json" id="suppliers">
+[
+  {
+    "name": "Sigma-Aldrich / Merck",
+    "key": "sigma",
+    "enabled": true,
+    "url": "https://www.sigmaaldrich.com/DE/de/search/{cas}?focus=products&page=1&perpage=30&sort=relevance&term={cas}&type=cas_number",
+    "note": "Search type CAS-Nummer (type=cas_number). Exact URL for 62-53-3 archived by the Internet Archive 2026-02-26, page lists aniline. Live site blocks scripted requests. No purity_url: Sigma's purity filter exists, but most products carry no purity value (3 of 14 for aniline), so it would hide offers."
+  },
+  {
+    "name": "VWR (Avantor)",
+    "key": "vwr",
+    "enabled": true,
+    "url": "https://www.vwr.com/de/de/search/cas_number%3D{cas}",
+    "note": "UNVERIFIED: built from VWR's own site code (advanced search, CAS field only); results load by JavaScript behind Cloudflare, so not seen. Plain search fallback: https://www.vwr.com/de/de/search/{cas}"
+  },
+  {
+    "name": "Fisher Scientific",
+    "key": "fisher",
+    "enabled": true,
+    "url": "https://www.fishersci.de/de/de/browse/cas/{cas}",
+    "purity_url": "https://www.fishersci.de/de/de/browse/cas/{cas}?filter=dimPercentPurity_de_dim_ss%3A{purity}%25~dimPercentPurity_de_dim_ss%3A%26ge%3B{purity}%25~dimPercentPurity_de_dim_ss%3A%26gt%3B{purity}%25~dimPercentPurity_de_dim_ss%3A{purity}%2B%25",
+    "note": "CAS page that Fisher's structure search links to; lists aniline (Thermo Scientific Chemicals, Fisher Chemical). purity_url uses Fisher's 'Reinheit (%)' filter with the labels {purity}%, &ge;{purity}%, &gt;{purity}%, {purity}+% (values are OR-ed, unknown ones ignored). Both checked 2026-11-05 with 99.5 and 99."
+  },
+  {
+    "name": "Thermo Fisher",
+    "key": "thermo",
+    "enabled": true,
+    "url": "https://www.thermofisher.com/search/cas/{cas}",
+    "note": "Where Thermo's search box sends a CAS number (its search API returned /search/cas/62-53-3 for Germany, 2026-11-05). Results render by JavaScript, so no purity filter could be checked. Overlaps with Fisher; set enabled to false to drop it."
+  },
+  {
+    "name": "Th. Geyer",
+    "key": "geyer",
+    "enabled": true,
+    "url": "https://www.thgeyer.com/lab/shop/catalog/search/search.action?model.query=cas%40{cas}",
+    "note": "Webshop search with Geyer's cas@ prefix (searches CAS numbers only). Checked 2026-11-05: 48 hits for aniline; prices need login. No purity_url: its search can't combine a CAS number with a purity term (tested and/AND, quotes, wildcards)."
+  },
+  {
+    "name": "abcr",
+    "key": "abcr",
+    "enabled": true,
+    "url": "https://abcr.com/de_en/catalogsearch/result/?q={cas}",
+    "note": "The site's own search form (GET, field q); www.abcr.de redirects to abcr.com. Checked 2026-11-05: results page for 62-53-3."
+  },
+  {
+    "name": "ChemPUR",
+    "key": "chempur",
+    "enabled": true,
+    "url": "https://chempur.de/de/produktsuche/",
+    "post": {
+      "psuche": "{cas}"
+    },
+    "note": "Search works only as a form POST (a link with ?psuche= shows an empty search; checked 2026-11-05 with 7440-50-8). The web page submits the form in a new tab; the script can't."
+  },
+  {
+    "name": "TCI Chemicals",
+    "key": "tci",
+    "enabled": true,
+    "url": "https://www.tcichemicals.com/DE/de/search/?text={cas}",
+    "note": "The site's own search form (GET /DE/de/search/, field text), from the Internet Archive copy of 2026-07-16. Live site blocks scripted requests."
+  },
+  {
+    "name": "Santa Cruz Biotechnology",
+    "key": "scbt",
+    "enabled": true,
+    "url": "https://www.scbt.com/search?Ntt={cas}",
+    "note": "Search URL format seen in Internet Archive captures (2025, /search?Ntt=). Live site blocks scripted requests; a German /de/search path was not confirmed."
+  },
+  {
+    "name": "BLD Pharm",
+    "key": "bld",
+    "enabled": true,
+    "url": "https://www.bldpharm.de/search/Search.html?keyword={cas}",
+    "note": "What the site's search button opens (static/js/common.js), 2026-11-05."
+  },
+  {
+    "name": "Doug Discovery (Fluorochem)",
+    "key": "doug",
+    "enabled": true,
+    "url": "https://fluorochem.co.uk/?s={cas}",
+    "note": "dougdiscovery.com redirects to fluorochem.co.uk. The site's own search form (GET / with field s; its SearchAction is ?s={search_term_string}), from the Internet Archive copy of 2026-04-12. Live site blocks scripted requests."
+  }
+]
+</script>
+<script>
+"use strict";
+
+/* CAS number and purity rules: keep in step with cas_search.py. */
+const DASHES = /[‐-―−]/g;
+
+function normalizeCas(raw) {
+  const shown = raw.trim();
+  const text = raw.replace(/\s+/g, "").replace(DASHES, "-");
+  if (!/^(?:\d+-\d\d-\d|\d+)$/.test(text)) {
+    throw new Error(`“${shown}” does not look like a CAS number (e.g. 62-53-3 or 62533).`);
+  }
+  const digits = text.replace(/-/g, "").replace(/^0+/, "");  // some lists zero-pad: 000062-53-3
+  if (digits.length < 5 || digits.length > 10) {
+    throw new Error(`“${shown}” has ${digits.length} digits; a CAS number has 5 to 10.`);
+  }
+  const body = digits.slice(0, -1);
+  const check = Number(digits.slice(-1));
+  let sum = 0;
+  for (let i = 0; i < body.length; i++) sum += (body.length - i) * Number(body[i]);
+  if (sum % 10 !== check) {
+    throw new Error(`“${shown}” fails the CAS check digit: the last digit should be ${sum % 10}. Typo?`);
+  }
+  return `${body.slice(0, -2)}-${body.slice(-2)}-${check}`;
+}
+
+function normalizePurity(raw) {
+  const text = raw.replace(/\s+/g, "").replace(/^(?:≥|>=|>)/, "").replace(/%$/, "").replace(/\+$/, "").replace(",", ".");
+  if (!/^\d{1,3}(?:\.\d+)?$/.test(text) || !(Number(text) > 0 && Number(text) <= 100)) {
+    throw new Error(`Purity “${raw.trim()}” should be a percentage between 0 and 100, e.g. 99.5.`);
+  }
+  return String(Number(text));
+}
+
+/* The purity_url is used when a purity is given and the shop has one; otherwise the plain url. */
+function searchFor(shop, cas, purity) {
+  const filtered = Boolean(purity) && (shop.purity_url || "").includes("{purity}");
+  const template = filtered ? shop.purity_url : shop.url;
+  return { url: template.replaceAll("{cas}", cas).replaceAll("{purity}", purity), filtered };
+}
+
+/* Page */
+const $ = (id) => document.getElementById(id);
+const casInput = $("cas"), purityInput = $("purity"), statusEl = $("status"), rowsEl = $("results");
+const openButton = $("open-all"), noteEl = $("popup-note");
+const EXAMPLE = "62-53-3";
+
+const store = {
+  get(key, fallback) {
+    try { const v = localStorage.getItem("cas-search." + key); return v === null ? fallback : JSON.parse(v); }
+    catch { return fallback; }
+  },
+  set(key, value) {
+    try { localStorage.setItem("cas-search." + key, JSON.stringify(value)); } catch { /* storage unavailable */ }
+  },
+};
+
+let SHOPS = [];
+let brokenList = "";
+try { SHOPS = JSON.parse($("suppliers").textContent); }
+catch (e) { brokenList = "The supplier list in this file is broken: " + e.message; }
+
+const choices = store.get("shops", {});  // supplier key -> ticked, only for suppliers the user changed
+const isSelected = (shop) => (shop.key in choices ? choices[shop.key] : shop.enabled !== false);
+const hasCas = (shop) => shop.url.includes("{cas}") || Boolean(shop.post);
+let opened = new Set();
+const openedTabs = [];  // windows this page opened, so "Close opened searches" can close them
+let lastSearch = "";
+let strict = false;   // show input errors in red only after a submit or after leaving the field
+let example = false;
+
+function el(tag, className, text) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text !== undefined) node.textContent = text;
+  return node;
+}
+
+/* Some shops (ChemPUR) search only through a POST form: submit one into the named tab. */
+function postInto(tabName, shop, cas) {
+  const form = el("form");
+  form.method = "post";
+  form.action = shop.url;
+  form.target = tabName;
+  for (const [name, value] of Object.entries(shop.post)) {
+    const input = el("input");
+    input.type = "hidden";
+    input.name = name;
+    input.value = value.replaceAll("{cas}", cas);
+    form.append(input);
+  }
+  document.body.append(form);
+  form.submit();
+  form.remove();
+}
+
+const mode = () => (document.querySelector('input[name="mode"]:checked') || {}).value || "tabs";
+
+/* Opens one search as a tab, or in "windows" mode as its own window (stacked with an offset).
+   The opener link is kept on purpose: without it the page could not close the tab later. */
+function openSearch(shop, search, i) {
+  let features = "";
+  if (mode() === "windows") {
+    const w = Math.min(1200, screen.availWidth - 120), h = Math.min(900, screen.availHeight - 120);
+    const left = (screen.availLeft || 0) + 40 + 32 * i, top = (screen.availTop || 0) + 40 + 32 * i;
+    features = `popup,width=${w},height=${h},left=${left},top=${top}`;
+  }
+  if (!shop.post) return window.open(searchFor(shop, search.cas, search.purity).url, "_blank", features);
+  const name = `cas-search-${shop.key}-${Date.now()}-${i}`;
+  const tab = window.open("", name, features);
+  if (tab) postInto(name, shop, search.cas);
+  return tab;
+}
+
+function updateCloseButton() {
+  const n = openedTabs.filter((tab) => !tab.closed).length;
+  const button = $("close-all");
+  button.disabled = n === 0;
+  button.textContent = n ? `Close ${n} opened search${n === 1 ? "" : "es"}` : "Close opened searches";
+}
+
+function closeOpened() {
+  for (const tab of openedTabs) { try { tab.close(); } catch { /* not closable */ } }
+  openedTabs.length = 0;
+  updateCloseButton();
+}
+
+function hostOf(url) {
+  try { return new URL(url.replaceAll("{cas}", "0")).hostname.replace(/^www\./, ""); } catch { return ""; }
+}
+
+function readSearch() {
+  if (!casInput.value.trim()) return { error: "Type or paste a CAS number.", empty: true };
+  try {
+    const cas = normalizeCas(casInput.value);
+    const purity = purityInput.value.trim() ? normalizePurity(purityInput.value) : "";
+    return { cas, purity };
+  } catch (e) {
+    return { error: e.message };
+  }
+}
+
+function markOpened(key) {
+  opened.add(key);
+  const row = rowsEl.querySelector(`a[data-key="${CSS.escape(key)}"]`);
+  if (row) { row.classList.add("opened"); row.querySelector(".go").textContent = "Opened ✓"; }
+}
+
+function buildRow(shop, search) {
+  const a = el("a", "row");
+  a.dataset.key = shop.key;
+  const meta = el("span", "meta");
+  meta.append(el("span", "host", hostOf(shop.url)));
+  if (shop.terms) meta.append(el("span", "terms", shop.terms));
+  let go = "Open ↗";
+  if (!hasCas(shop)) {
+    meta.append(el("span", "chip", "no CAS search yet"));
+    a.href = shop.url;
+    a.target = "_blank";
+    a.rel = "noopener";
+    go = "Homepage ↗";
+  } else if (search.error) {
+    a.setAttribute("aria-disabled", "true");
+  } else {
+    const { url, filtered } = searchFor(shop, search.cas, search.purity);
+    a.href = url;
+    a.target = "_blank";
+    a.rel = "noopener";
+    a.addEventListener("click", (event) => {
+      const plain = event.button === 0 && !(event.ctrlKey || event.metaKey || event.shiftKey || event.altKey);
+      const tab = plain ? openSearch(shop, search, 0) : null;
+      if (tab) { event.preventDefault(); openedTabs.push(tab); updateCloseButton(); }
+      else if (shop.post) { event.preventDefault(); postInto("_blank", shop, search.cas); }
+      markOpened(shop.key);
+    });
+    if (search.purity) meta.append(el("span", filtered ? "chip on" : "chip", filtered ? `${search.purity} % filter` : "no purity filter"));
+    if (opened.has(shop.key)) { a.classList.add("opened"); go = "Opened ✓"; }
+  }
+  a.append(el("span", "name", shop.name), meta, el("span", "go", go));
+  const li = el("li");
+  li.append(a);
+  return li;
+}
+
+function render() {
+  const search = readSearch();
+  const key = search.error ? "" : `${search.cas}|${search.purity}`;
+  if (key !== lastSearch) { opened = new Set(); lastSearch = key; noteEl.hidden = true; }
+
+  if (brokenList) {
+    statusEl.className = "status bad";
+    statusEl.textContent = brokenList;
+  } else if (search.error) {
+    statusEl.className = strict && !search.empty ? "status bad" : "status";
+    statusEl.textContent = search.error;
+  } else {
+    statusEl.className = "status ok";
+    statusEl.textContent = `${search.cas} · check digit matches` + (search.purity ? ` · purity ${search.purity} %` : "") + (example ? " · example: aniline" : "");
+  }
+
+  const shops = SHOPS.filter(isSelected);
+  rowsEl.replaceChildren(...shops.map((shop) => buildRow(shop, search)));
+  if (!shops.length) rowsEl.append(el("li", "empty", "No supplier ticked. Tick at least one above."));
+
+  const ready = search.error ? 0 : shops.filter(hasCas).length;
+  openButton.textContent = ready ? `Open ${ready} search${ready === 1 ? "" : "es"}` : "Open all searches";
+}
+
+function buildToggles() {
+  const wrap = $("shop-toggles");
+  for (const shop of SHOPS) {
+    const label = el("label", "toggle");
+    const box = el("input");
+    box.type = "checkbox";
+    box.id = "shop-" + shop.key;
+    box.checked = isSelected(shop);
+    box.addEventListener("change", () => { choices[shop.key] = box.checked; store.set("shops", choices); render(); });
+    label.append(box, document.createTextNode(shop.name));
+    wrap.append(label);
+  }
+  const filtering = SHOPS.filter((s) => (s.purity_url || "").includes("{purity}")).map((s) => s.name);
+  $("purity-hint").textContent = filtering.length
+    ? `Purity narrows the results at ${filtering.join(", ")} to products labelled with it (99.5 finds 99.5 %, ≥ 99.5 % and 99.5+ %). The other suppliers open unfiltered.`
+    : "None of the suppliers can filter by purity yet.";
+}
+
+function openAll() {
+  strict = true;
+  example = false;
+  render();
+  const search = readSearch();
+  if (search.error) { casInput.focus(); return; }
+  const targets = SHOPS.filter((s) => isSelected(s) && hasCas(s));
+  if (!targets.length) return;
+  store.set("cas", casInput.value.trim());
+  let count = 0;
+  for (const [i, shop] of targets.entries()) {
+    const tab = openSearch(shop, search, i);
+    if (!tab) break;  // blocked: the browser would block the remaining ones too
+    openedTabs.push(tab);
+    count++;
+    markOpened(shop.key);
+  }
+  updateCloseButton();
+  if (count === targets.length) { noteEl.hidden = true; return; }
+  noteEl.textContent = count === 0
+    ? "This browser did not let the page open tabs. Click each supplier below; every click opens its search."
+    : `Opened ${count} of ${targets.length} searches; the browser blocked the others as pop-ups. Click the remaining suppliers below, or allow pop-ups for this page (see the help below the list).`;
+  noteEl.hidden = false;
+}
+
+function casFromHash() {
+  let text = "";
+  try { text = decodeURIComponent(location.hash.slice(1)).trim(); } catch { return ""; }
+  return /^\d[\d\s‐-―−-]{3,}$/.test(text) ? text : "";
+}
+
+const saved = store.get("cas", "");
+const hashCas = casFromHash();
+casInput.value = hashCas || saved || EXAMPLE;
+example = !hashCas && !saved;
+
+$("search").addEventListener("submit", (event) => { event.preventDefault(); openAll(); });
+$("close-all").addEventListener("click", closeOpened);
+window.addEventListener("focus", updateCloseButton);
+for (const radio of document.querySelectorAll('input[name="mode"]')) {
+  radio.checked = radio.value === store.get("mode", "tabs");
+  radio.addEventListener("change", () => store.set("mode", mode()));
+}
+casInput.addEventListener("input", () => { example = false; strict = false; render(); });
+purityInput.addEventListener("input", () => { strict = false; render(); });
+for (const input of [casInput, purityInput]) {
+  input.addEventListener("blur", () => { if (input.value.trim()) { strict = true; render(); } });
+}
+window.addEventListener("hashchange", () => {
+  const cas = casFromHash();
+  if (cas) { casInput.value = cas; example = false; render(); }
+});
+
+/* Work through a list */
+const batchInput = $("batch-input"), batchClose = $("batch-close");
+const CAS_TOKEN = /(?<![\d-])\d{2,10}[-‐-―−]\d\d[-‐-―−]\d(?![\d-])/g;
+let batch = [];
+let batchIndex = -1;
+const seen = new Set();
+
+function parseList(text) {
+  const valid = [], invalid = [];
+  for (const token of text.match(CAS_TOKEN) || []) {
+    try { const cas = normalizeCas(token); if (!valid.includes(cas)) valid.push(cas); }
+    catch { if (!invalid.includes(token)) invalid.push(token); }
+  }
+  return { valid, invalid };
+}
+
+/* .xlsx is a zip: read the shared strings and sheets, return their text (CAS numbers are found in it). */
+async function textFromXlsx(buffer) {
+  const bytes = new Uint8Array(buffer), view = new DataView(buffer), utf8 = new TextDecoder();
+  let eocd = bytes.length - 22;
+  while (eocd >= 0 && view.getUint32(eocd, true) !== 0x06054b50) eocd--;
+  if (eocd < 0) throw new Error("not a readable .xlsx file");
+  let p = view.getUint32(eocd + 16, true);
+  const parts = [];
+  for (let n = view.getUint16(eocd + 10, true); n > 0; n--) {
+    const method = view.getUint16(p + 10, true), size = view.getUint32(p + 20, true);
+    const nameLen = view.getUint16(p + 28, true), skip = nameLen + view.getUint16(p + 30, true) + view.getUint16(p + 32, true);
+    const local = view.getUint32(p + 42, true);
+    const name = utf8.decode(bytes.subarray(p + 46, p + 46 + nameLen));
+    p += 46 + skip;
+    if (!/^xl\/(sharedStrings|worksheets\/sheet\d+)\.xml$/.test(name)) continue;
+    const start = local + 30 + view.getUint16(local + 26, true) + view.getUint16(local + 28, true);
+    const data = bytes.subarray(start, start + size);
+    const xml = method === 0 ? utf8.decode(data)
+      : await new Response(new Blob([data]).stream().pipeThrough(new DecompressionStream("deflate-raw"))).text();
+    parts.push(xml.replace(/<[^>]+>/g, " "));
+  }
+  return parts.join("\n");
+}
+
+async function loadFile(file) {
+  try {
+    if (/\.xls$/i.test(file.name)) throw new Error("old .xls files can't be read here; save as .xlsx or .csv, or copy the column and paste it");
+    const text = /\.xlsx$/i.test(file.name) ? await textFromXlsx(await file.arrayBuffer()) : await file.text();
+    const { valid, invalid } = parseList(text);
+    batchInput.value = [...valid, ...invalid].join("\n");
+    renderBatch();
+  } catch (e) {
+    $("batch-status").className = "status bad";
+    $("batch-status").textContent = `Could not read ${file.name}: ${e.message}.`;
+  }
+}
+
+function renderBatch() {
+  const { valid, invalid } = parseList(batchInput.value);
+  if (valid.join() !== batch.join()) { batch = valid; batchIndex = -1; seen.clear(); }
+  store.set("list", batchInput.value);
+  const status = $("batch-status");
+  status.className = invalid.length ? "status bad" : "status";
+  status.textContent = !batchInput.value.trim() ? "No list yet."
+    : !batch.length && !invalid.length ? "No CAS numbers found in this text."
+    : `${batch.length} CAS number${batch.length === 1 ? "" : "s"}` + (invalid.length
+      ? ` · ${invalid.length} failing the check digit, skipped: ${invalid.slice(0, 4).join(", ")}${invalid.length > 4 ? ", …" : ""}` : "");
+  $("batch-pos").textContent = !batch.length ? "" : batchIndex < 0 ? `${batch.length} to go` : `${batchIndex + 1} of ${batch.length}`;
+  $("batch-prev").disabled = batchIndex <= 0;
+  const next = $("batch-next");
+  next.disabled = !batch.length || batchIndex >= batch.length - 1;
+  next.textContent = batchIndex < 0 ? "Start ▶" : "Next ▶";
+  $("batch-list").replaceChildren(...batch.map((cas, i) => {
+    const current = i === batchIndex, done = seen.has(i) && !current;
+    const chip = el("button", "cas-chip" + (current ? " current" : done ? " seen" : ""), done ? `${cas} ✓` : cas);
+    chip.type = "button";
+    chip.addEventListener("click", () => goTo(i));
+    const li = el("li");
+    li.append(chip);
+    return li;
+  }));
+}
+
+function goTo(i) {
+  if (i < 0 || i >= batch.length) return;
+  if (batchClose.checked) closeOpened();
+  batchIndex = i;
+  seen.add(i);
+  casInput.value = batch[i];
+  example = false;
+  openAll();
+  renderBatch();
+  $("batch-list").children[i]?.scrollIntoView({ block: "nearest" });
+}
+
+batchInput.value = store.get("list", "");
+batchInput.addEventListener("input", renderBatch);
+batchInput.addEventListener("dragover", (e) => { e.preventDefault(); batchInput.classList.add("drop"); });
+batchInput.addEventListener("dragleave", () => batchInput.classList.remove("drop"));
+batchInput.addEventListener("drop", (e) => {
+  batchInput.classList.remove("drop");
+  const file = e.dataTransfer.files[0];
+  if (file) { e.preventDefault(); loadFile(file); }
+});
+for (const type of ["dragover", "drop"]) {  // a file dropped next to the box must not replace the page
+  window.addEventListener(type, (e) => { if (e.target !== batchInput) e.preventDefault(); });
+}
+$("batch-file").addEventListener("change", (e) => { if (e.target.files[0]) loadFile(e.target.files[0]); e.target.value = ""; });
+$("batch-prev").addEventListener("click", () => goTo(batchIndex - 1));
+$("batch-next").addEventListener("click", () => goTo(batchIndex + 1));
+
+buildToggles();
+render();
+renderBatch();
+updateCloseButton();
+casInput.select();
+</script>

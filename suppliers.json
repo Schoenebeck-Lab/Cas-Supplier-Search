@@ -1,0 +1,83 @@
+[
+  {
+    "name": "Sigma-Aldrich / Merck",
+    "key": "sigma",
+    "enabled": true,
+    "url": "https://www.sigmaaldrich.com/DE/de/search/{cas}?focus=products&page=1&perpage=30&sort=relevance&term={cas}&type=cas_number",
+    "note": "Search type CAS-Nummer (type=cas_number). Exact URL for 62-53-3 archived by the Internet Archive 2026-02-26, page lists aniline. Live site blocks scripted requests. No purity_url: Sigma's purity filter exists, but most products carry no purity value (3 of 14 for aniline), so it would hide offers."
+  },
+  {
+    "name": "VWR (Avantor)",
+    "key": "vwr",
+    "enabled": true,
+    "url": "https://www.vwr.com/de/de/search/cas_number%3D{cas}",
+    "note": "UNVERIFIED: built from VWR's own site code (advanced search, CAS field only); results load by JavaScript behind Cloudflare, so not seen. Plain search fallback: https://www.vwr.com/de/de/search/{cas}"
+  },
+  {
+    "name": "Fisher Scientific",
+    "key": "fisher",
+    "enabled": true,
+    "url": "https://www.fishersci.de/de/de/browse/cas/{cas}",
+    "purity_url": "https://www.fishersci.de/de/de/browse/cas/{cas}?filter=dimPercentPurity_de_dim_ss%3A{purity}%25~dimPercentPurity_de_dim_ss%3A%26ge%3B{purity}%25~dimPercentPurity_de_dim_ss%3A%26gt%3B{purity}%25~dimPercentPurity_de_dim_ss%3A{purity}%2B%25",
+    "note": "CAS page that Fisher's structure search links to; lists aniline (Thermo Scientific Chemicals, Fisher Chemical). purity_url uses Fisher's 'Reinheit (%)' filter with the labels {purity}%, &ge;{purity}%, &gt;{purity}%, {purity}+% (values are OR-ed, unknown ones ignored). Both checked 2026-11-05 with 99.5 and 99."
+  },
+  {
+    "name": "Thermo Fisher",
+    "key": "thermo",
+    "enabled": true,
+    "url": "https://www.thermofisher.com/search/cas/{cas}",
+    "note": "Where Thermo's search box sends a CAS number (its search API returned /search/cas/62-53-3 for Germany, 2026-11-05). Results render by JavaScript, so no purity filter could be checked. Overlaps with Fisher; set enabled to false to drop it."
+  },
+  {
+    "name": "Th. Geyer",
+    "key": "geyer",
+    "enabled": true,
+    "url": "https://www.thgeyer.com/lab/shop/catalog/search/search.action?model.query=cas%40{cas}",
+    "note": "Webshop search with Geyer's cas@ prefix (searches CAS numbers only). Checked 2026-11-05: 48 hits for aniline; prices need login. No purity_url: its search can't combine a CAS number with a purity term (tested and/AND, quotes, wildcards)."
+  },
+  {
+    "name": "abcr",
+    "key": "abcr",
+    "enabled": true,
+    "url": "https://abcr.com/de_en/catalogsearch/result/?q={cas}",
+    "note": "The site's own search form (GET, field q); www.abcr.de redirects to abcr.com. Checked 2026-11-05: results page for 62-53-3."
+  },
+  {
+    "name": "ChemPUR",
+    "key": "chempur",
+    "enabled": true,
+    "url": "https://chempur.de/de/produktsuche/",
+    "post": {
+      "psuche": "{cas}"
+    },
+    "note": "Search works only as a form POST (a link with ?psuche= shows an empty search; checked 2026-11-05 with 7440-50-8). The web page submits the form in a new tab; the script can't."
+  },
+  {
+    "name": "TCI Chemicals",
+    "key": "tci",
+    "enabled": true,
+    "url": "https://www.tcichemicals.com/DE/de/search/?text={cas}",
+    "note": "The site's own search form (GET /DE/de/search/, field text), from the Internet Archive copy of 2026-07-16. Live site blocks scripted requests."
+  },
+  {
+    "name": "Santa Cruz Biotechnology",
+    "key": "scbt",
+    "enabled": true,
+    "url": "https://www.scbt.com/search?Ntt={cas}",
+    "note": "Search URL format seen in Internet Archive captures (2025, /search?Ntt=). Live site blocks scripted requests; a German /de/search path was not confirmed."
+  },
+  {
+    "name": "BLD Pharm",
+    "key": "bld",
+    "enabled": true,
+    "url": "https://www.bldpharm.de/search/Search.html?keyword={cas}",
+    "note": "What the site's search button opens (static/js/common.js), 2026-11-05."
+  },
+  {
+    "name": "Doug Discovery (Fluorochem)",
+    "key": "doug",
+    "enabled": true,
+    "url": "https://fluorochem.co.uk/?s={cas}",
+    "note": "dougdiscovery.com redirects to fluorochem.co.uk. The site's own search form (GET / with field s; its SearchAction is ?s={search_term_string}), from the Internet Archive copy of 2026-04-12. Live site blocks scripted requests."
+  }
+]
