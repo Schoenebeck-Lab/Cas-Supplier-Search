@@ -4,14 +4,16 @@
     "key": "sigma",
     "enabled": true,
     "url": "https://www.sigmaaldrich.com/DE/de/search/{cas}?focus=products&page=1&perpage=30&sort=relevance&term={cas}&type=cas_number",
-    "note": "Search type CAS-Nummer (type=cas_number). Exact URL for 62-53-3 archived by the Internet Archive 2026-02-26, page lists aniline. Live site blocks scripted requests. No purity_url: Sigma's purity filter exists, but most products carry no purity value (3 of 14 for aniline), so it would hide offers."
+    "cart": "https://www.sigmaaldrich.com/DE/de/cart?type=active",
+    "note": "Search type CAS-Nummer (type=cas_number). Exact URL for 62-53-3 archived by the Internet Archive 2026-02-26, page lists aniline. Live site blocks scripted requests. No purity_url: Sigma's purity filter exists, but most products carry no purity value (3 of 14 for aniline), so it would hide offers. Cart: the cart page's own link to itself, Internet Archive copy of 2026-05-02 (title Warenkorb)."
   },
   {
     "name": "VWR (Avantor)",
     "key": "vwr",
     "enabled": true,
     "url": "https://www.vwr.com/de/de/search/cas_number%3D{cas}",
-    "note": "UNVERIFIED: built from VWR's own site code (advanced search, CAS field only); results load by JavaScript behind Cloudflare, so not seen. Plain search fallback: https://www.vwr.com/de/de/search/{cas}"
+    "cart": "https://www.vwr.com/de/de/cart",
+    "note": "UNVERIFIED: built from VWR's own site code (advanced search, CAS field only); results load by JavaScript behind Cloudflare, so not seen. Plain search fallback: https://www.vwr.com/de/de/search/{cas} Cart: the 'cart' route in the same site code; not seen."
   },
   {
     "name": "Fisher Scientific",
@@ -19,28 +21,32 @@
     "enabled": true,
     "url": "https://www.fishersci.de/de/de/browse/cas/{cas}",
     "purity_url": "https://www.fishersci.de/de/de/browse/cas/{cas}?filter=dimPercentPurity_de_dim_ss%3A{purity}%25~dimPercentPurity_de_dim_ss%3A%26ge%3B{purity}%25~dimPercentPurity_de_dim_ss%3A%26gt%3B{purity}%25~dimPercentPurity_de_dim_ss%3A{purity}%2B%25",
-    "note": "CAS page that Fisher's structure search links to; lists aniline (Thermo Scientific Chemicals, Fisher Chemical). purity_url uses Fisher's 'Reinheit (%)' filter with the labels {purity}%, &ge;{purity}%, &gt;{purity}%, {purity}+% (values are OR-ed, unknown ones ignored). Both checked 2026-11-05 with 99.5 and 99."
+    "cart": "https://www.fishersci.de/store1/cart/?language=de&countryCode=DE",
+    "note": "CAS page that Fisher's structure search links to; lists aniline (Thermo Scientific Chemicals, Fisher Chemical). purity_url uses Fisher's 'Reinheit (%)' filter with the labels {purity}%, &ge;{purity}%, &gt;{purity}%, {purity}+% (values are OR-ed, unknown ones ignored). Both checked 2026-11-05 with 99.5 and 99. Cart: where Fisher's add-to-cart script (FS_addToCart.js) sends you, 2026-11-06."
   },
   {
     "name": "Thermo Fisher",
     "key": "thermo",
     "enabled": true,
     "url": "https://www.thermofisher.com/search/cas/{cas}",
-    "note": "Where Thermo's search box sends a CAS number (its search API returned /search/cas/62-53-3 for Germany, 2026-11-05). Results render by JavaScript, so no purity filter could be checked. Overlaps with Fisher; set enabled to false to drop it."
+    "cart": "https://www.thermofisher.com/store/cart",
+    "note": "Where Thermo's search box sends a CAS number (its search API returned /search/cas/62-53-3 for Germany, 2026-11-05). Results render by JavaScript, so no purity filter could be checked. Overlaps with Fisher; set enabled to false to drop it. Cart: the page the header's cart button falls back to (/store/cart)."
   },
   {
     "name": "Th. Geyer",
     "key": "geyer",
     "enabled": true,
     "url": "https://www.thgeyer.com/lab/shop/catalog/search/search.action?model.query=cas%40{cas}",
-    "note": "Webshop search with Geyer's cas@ prefix (searches CAS numbers only). Checked 2026-11-05: 48 hits for aniline; prices need login. No purity_url: its search can't combine a CAS number with a purity term (tested and/AND, quotes, wildcards)."
+    "cart": "https://www.thgeyer.com/lab/shop/shoppingcart/cart/show.action",
+    "note": "Webshop search with Geyer's cas@ prefix (searches CAS numbers only). Checked 2026-11-05: 48 hits for aniline; prices need login. No purity_url: its search can't combine a CAS number with a purity term (tested and/AND, quotes, wildcards). Cart: the link in the shop header's cart preview, without the session id."
   },
   {
     "name": "abcr",
     "key": "abcr",
     "enabled": true,
     "url": "https://abcr.com/de_en/catalogsearch/result/?q={cas}",
-    "note": "The site's own search form (GET, field q); www.abcr.de redirects to abcr.com. Checked 2026-11-05: results page for 62-53-3."
+    "cart": "https://abcr.com/de_en/checkout/cart/",
+    "note": "The site's own search form (GET, field q); www.abcr.de redirects to abcr.com. Checked 2026-11-05: results page for 62-53-3. Cart: the header's cart link."
   },
   {
     "name": "ChemPUR",
@@ -50,34 +56,38 @@
     "post": {
       "psuche": "{cas}"
     },
-    "note": "Search works only as a form POST (a link with ?psuche= shows an empty search; checked 2026-11-05 with 7440-50-8). The web page submits the form in a new tab; the script can't."
+    "note": "Search works only as a form POST (a link with ?psuche= shows an empty search; checked 2026-11-05 with 7440-50-8). The web page submits the form in a new tab; the script can't. No cart: ChemPUR takes orders through a 'Request for order' form on its search results, so the page's cart button reopens the search for each CAS number picked here."
   },
   {
     "name": "TCI Chemicals",
     "key": "tci",
     "enabled": true,
     "url": "https://www.tcichemicals.com/DE/de/search/?text={cas}",
-    "note": "The site's own search form (GET /DE/de/search/, field text), from the Internet Archive copy of 2026-07-16. Live site blocks scripted requests."
+    "cart": "https://www.tcichemicals.com/DE/de/cart",
+    "note": "The site's own search form (GET /DE/de/search/, field text), from the Internet Archive copy of 2026-07-16. Live site blocks scripted requests. Cart: the header's cart link in the same archive copy."
   },
   {
     "name": "Santa Cruz Biotechnology",
     "key": "scbt",
     "enabled": true,
     "url": "https://www.scbt.com/search?Ntt={cas}",
-    "note": "Search URL format seen in Internet Archive captures (2025, /search?Ntt=). Live site blocks scripted requests; a German /de/search path was not confirmed."
+    "cart": "https://www.scbt.com/cart",
+    "note": "Search URL format seen in Internet Archive captures (2025, /search?Ntt=). Live site blocks scripted requests; a German /de/search path was not confirmed. Cart: /cart is in the site's own page list (Internet Archive captures of its scripts, 2023-2026); not seen."
   },
   {
     "name": "BLD Pharm",
     "key": "bld",
     "enabled": true,
     "url": "https://www.bldpharm.de/search/Search.html?keyword={cas}",
-    "note": "What the site's search button opens (static/js/common.js), 2026-11-05."
+    "cart": "https://www.bldpharm.de/user/myCart.html",
+    "note": "What the site's search button opens (static/js/common.js), 2026-11-05. Cart: the header's Warenkorb link, 2026-11-06."
   },
   {
     "name": "Doug Discovery (Fluorochem)",
     "key": "doug",
     "enabled": true,
     "url": "https://fluorochem.co.uk/?s={cas}",
-    "note": "dougdiscovery.com redirects to fluorochem.co.uk. The site's own search form (GET / with field s; its SearchAction is ?s={search_term_string}), from the Internet Archive copy of 2026-04-12. Live site blocks scripted requests."
+    "cart": "https://fluorochem.co.uk/cart/",
+    "note": "dougdiscovery.com redirects to fluorochem.co.uk. The site's own search form (GET / with field s; its SearchAction is ?s={search_term_string}), from the Internet Archive copy of 2026-04-12. Live site blocks scripted requests. Cart: /cart/, Internet Archive capture of 2026-02-25; without a login it redirects to /my-account/."
   }
 ]

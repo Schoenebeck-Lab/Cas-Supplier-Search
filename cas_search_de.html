@@ -17,6 +17,7 @@
     --accent-ink: #ffffff;
     --accent-soft: #f8ebdc;
     --ok: #1d7448;
+    --ok-soft: #e2f1e8;
     --bad: #b3261e;
     --font-display: "Bahnschrift", "DIN Alternate", "Roboto Condensed", "Arial Narrow", sans-serif;
     --font-body: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -26,16 +27,17 @@
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
       --bg: #12181f; --surface: #1a222b; --field: #141b23; --ink: #e4e9ee; --muted: #98a4b0; --line: #2c3743;
-      --accent: #f0a356; --accent-ink: #12181f; --accent-soft: #3a2b1c; --ok: #5cc28f; --bad: #f28b82;
+      --accent: #f0a356; --accent-ink: #12181f; --accent-soft: #3a2b1c; --ok: #5cc28f; --ok-soft: #173326; --bad: #f28b82;
       color-scheme: dark;
     }
   }
   :root[data-theme="dark"] {
     --bg: #12181f; --surface: #1a222b; --field: #141b23; --ink: #e4e9ee; --muted: #98a4b0; --line: #2c3743;
-    --accent: #f0a356; --accent-ink: #12181f; --accent-soft: #3a2b1c; --ok: #5cc28f; --bad: #f28b82;
+    --accent: #f0a356; --accent-ink: #12181f; --accent-soft: #3a2b1c; --ok: #5cc28f; --ok-soft: #173326; --bad: #f28b82;
     color-scheme: dark;
   }
   *, *::before, *::after { box-sizing: border-box; }
+  [hidden] { display: none !important; }
   body { margin: 0; background: var(--bg); color: var(--ink); font: 1rem/1.5 var(--font-body); }
   .page {
     max-width: 42rem; margin: 0 auto; display: grid; gap: 1.75rem;
@@ -146,10 +148,34 @@
   }
   .cas-chip.seen { color: var(--muted); }
   .cas-chip.current { color: var(--ink); background: var(--accent-soft); border-color: var(--accent); }
+  .cas-chip.picked { border-color: var(--ok); }
+
+  /* Tracking: a Pick button beside each supplier row, and the card of picked shops */
+  .item { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .5rem; }
+  .pick {
+    min-width: 6.5rem; padding: 0 1rem; cursor: pointer;
+    font: 600 .95rem/1.2 var(--font-display); color: var(--ink);
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+  }
+  .pick:hover:not(:disabled) { color: var(--ok); border-color: var(--ok); }
+  .pick:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .pick[aria-pressed="true"] { color: var(--ok); background: var(--ok-soft); border-color: var(--ok); }
+  .row.picked { border-color: var(--ok); }
+  .groups { display: grid; gap: .9rem; margin: 0; padding: 0; list-style: none; }
+  .group { display: grid; gap: .4rem; }
+  .group-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: .2rem .7rem; }
+  .group-head .name { font-size: 1rem; }
+  .group.open .name { color: var(--muted); }
+  .count { font: .85rem var(--font-data); font-variant-numeric: tabular-nums; color: var(--muted); }
+  .cart-link { font-weight: 600; color: var(--accent); text-decoration: none; }
+  .cart-link:hover { text-decoration: underline; }
+  .cart-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  #picks-copy { min-height: 4rem; border-style: solid; }
 
   @media (max-width: 30rem) {
     .fields { grid-template-columns: minmax(0, 1fr); }
     .actions > button, .batch-nav > button { flex: 1 1 auto; }
+    .pick { min-width: 0; padding: 0 .7rem; }
   }
 </style>
 
@@ -183,6 +209,12 @@
         <label class="toggle"><input type="radio" name="mode" id="mode-windows" value="windows"> Ein Fenster pro Shop</label>
       </div>
     </fieldset>
+    <fieldset>
+      <legend class="label">Merkliste</legend>
+      <div class="toggles">
+        <label class="toggle"><input type="checkbox" id="track"> Gewählten Shop für jede CAS-Nummer merken</label>
+      </div>
+    </fieldset>
     <div class="actions">
       <button id="open-all" class="primary" type="submit">Alle Suchen öffnen</button>
       <button id="close-all" class="secondary" type="button" disabled>Geöffnete Suchen schließen</button>
@@ -212,6 +244,19 @@
     <ul id="results" class="rows"></ul>
   </section>
 
+  <section id="picks" class="card" aria-labelledby="picks-title" hidden>
+    <h2 id="picks-title">Gewählte Shops</h2>
+    <p class="hint">Eine Chemikalie in den Warenkorb eines Shops legen, dann oben bei diesem Shop auf „Wählen“ drücken. Die Seite schließt die Suchen und öffnet in einer Liste die nächste CAS-Nummer ohne Auswahl. Zum Schluss alle Warenkörbe auf einmal öffnen. Die Auswahl wird nur in diesem Browser gespeichert.</p>
+    <ul id="picks-groups" class="groups"></ul>
+    <p id="picks-status" class="status" aria-live="polite"></p>
+    <div class="actions">
+      <button id="open-carts" class="primary" type="button" disabled>Warenkörbe öffnen</button>
+      <button id="copy-picks" class="secondary" type="button" disabled>Als Tabelle kopieren</button>
+      <button id="clear-picks" class="secondary" type="button" disabled>Auswahl löschen</button>
+    </div>
+    <textarea id="picks-copy" rows="4" readonly hidden aria-label="Auswahl als Tabelle"></textarea>
+  </section>
+
   <details id="popup-help">
     <summary>Der Button hat nur einen Tab geöffnet?</summary>
     <p>Browser lassen eine Seite pro Klick nur einen Tab öffnen und blockieren die übrigen als Pop-ups. Pop-ups für diese Seite einmalig erlauben:</p>
@@ -225,7 +270,7 @@
   </details>
 
   <footer class="foot">
-    <p>Diese Seite stellt selbst keine Anfragen. Sie öffnet nur die Suchseiten der Lieferanten in neuen Tabs, in diesem Browser, mit Ihren Anmeldungen. Ein Link, der auf #62-53-3 endet, öffnet sie mit dieser CAS-Nummer.</p>
+    <p>Diese Seite stellt selbst keine Anfragen. Sie öffnet nur die Such- und Warenkorbseiten der Lieferanten in neuen Tabs, in diesem Browser, mit Ihren Anmeldungen. Ein Link, der auf #62-53-3 endet, öffnet sie mit dieser CAS-Nummer.</p>
     <p>CAS-Lieferantensuche von Quentin Bindschaedler · MIT-Lizenz · <a href="https://github.com/Schoenebeck-Lab/Cas-Supplier-Search">Quellcode</a></p>
   </footer>
 </main>
@@ -237,14 +282,16 @@
     "key": "sigma",
     "enabled": true,
     "url": "https://www.sigmaaldrich.com/DE/de/search/{cas}?focus=products&page=1&perpage=30&sort=relevance&term={cas}&type=cas_number",
-    "note": "Search type CAS-Nummer (type=cas_number). Exact URL for 62-53-3 archived by the Internet Archive 2026-02-26, page lists aniline. Live site blocks scripted requests. No purity_url: Sigma's purity filter exists, but most products carry no purity value (3 of 14 for aniline), so it would hide offers."
+    "cart": "https://www.sigmaaldrich.com/DE/de/cart?type=active",
+    "note": "Search type CAS-Nummer (type=cas_number). Exact URL for 62-53-3 archived by the Internet Archive 2026-02-26, page lists aniline. Live site blocks scripted requests. No purity_url: Sigma's purity filter exists, but most products carry no purity value (3 of 14 for aniline), so it would hide offers. Cart: the cart page's own link to itself, Internet Archive copy of 2026-05-02 (title Warenkorb)."
   },
   {
     "name": "VWR (Avantor)",
     "key": "vwr",
     "enabled": true,
     "url": "https://www.vwr.com/de/de/search/cas_number%3D{cas}",
-    "note": "UNVERIFIED: built from VWR's own site code (advanced search, CAS field only); results load by JavaScript behind Cloudflare, so not seen. Plain search fallback: https://www.vwr.com/de/de/search/{cas}"
+    "cart": "https://www.vwr.com/de/de/cart",
+    "note": "UNVERIFIED: built from VWR's own site code (advanced search, CAS field only); results load by JavaScript behind Cloudflare, so not seen. Plain search fallback: https://www.vwr.com/de/de/search/{cas} Cart: the 'cart' route in the same site code; not seen."
   },
   {
     "name": "Fisher Scientific",
@@ -252,28 +299,32 @@
     "enabled": true,
     "url": "https://www.fishersci.de/de/de/browse/cas/{cas}",
     "purity_url": "https://www.fishersci.de/de/de/browse/cas/{cas}?filter=dimPercentPurity_de_dim_ss%3A{purity}%25~dimPercentPurity_de_dim_ss%3A%26ge%3B{purity}%25~dimPercentPurity_de_dim_ss%3A%26gt%3B{purity}%25~dimPercentPurity_de_dim_ss%3A{purity}%2B%25",
-    "note": "CAS page that Fisher's structure search links to; lists aniline (Thermo Scientific Chemicals, Fisher Chemical). purity_url uses Fisher's 'Reinheit (%)' filter with the labels {purity}%, &ge;{purity}%, &gt;{purity}%, {purity}+% (values are OR-ed, unknown ones ignored). Both checked 2026-11-05 with 99.5 and 99."
+    "cart": "https://www.fishersci.de/store1/cart/?language=de&countryCode=DE",
+    "note": "CAS page that Fisher's structure search links to; lists aniline (Thermo Scientific Chemicals, Fisher Chemical). purity_url uses Fisher's 'Reinheit (%)' filter with the labels {purity}%, &ge;{purity}%, &gt;{purity}%, {purity}+% (values are OR-ed, unknown ones ignored). Both checked 2026-11-05 with 99.5 and 99. Cart: where Fisher's add-to-cart script (FS_addToCart.js) sends you, 2026-11-06."
   },
   {
     "name": "Thermo Fisher",
     "key": "thermo",
     "enabled": true,
     "url": "https://www.thermofisher.com/search/cas/{cas}",
-    "note": "Where Thermo's search box sends a CAS number (its search API returned /search/cas/62-53-3 for Germany, 2026-11-05). Results render by JavaScript, so no purity filter could be checked. Overlaps with Fisher; set enabled to false to drop it."
+    "cart": "https://www.thermofisher.com/store/cart",
+    "note": "Where Thermo's search box sends a CAS number (its search API returned /search/cas/62-53-3 for Germany, 2026-11-05). Results render by JavaScript, so no purity filter could be checked. Overlaps with Fisher; set enabled to false to drop it. Cart: the page the header's cart button falls back to (/store/cart)."
   },
   {
     "name": "Th. Geyer",
     "key": "geyer",
     "enabled": true,
     "url": "https://www.thgeyer.com/lab/shop/catalog/search/search.action?model.query=cas%40{cas}",
-    "note": "Webshop search with Geyer's cas@ prefix (searches CAS numbers only). Checked 2026-11-05: 48 hits for aniline; prices need login. No purity_url: its search can't combine a CAS number with a purity term (tested and/AND, quotes, wildcards)."
+    "cart": "https://www.thgeyer.com/lab/shop/shoppingcart/cart/show.action",
+    "note": "Webshop search with Geyer's cas@ prefix (searches CAS numbers only). Checked 2026-11-05: 48 hits for aniline; prices need login. No purity_url: its search can't combine a CAS number with a purity term (tested and/AND, quotes, wildcards). Cart: the link in the shop header's cart preview, without the session id."
   },
   {
     "name": "abcr",
     "key": "abcr",
     "enabled": true,
     "url": "https://abcr.com/de_en/catalogsearch/result/?q={cas}",
-    "note": "The site's own search form (GET, field q); www.abcr.de redirects to abcr.com. Checked 2026-11-05: results page for 62-53-3."
+    "cart": "https://abcr.com/de_en/checkout/cart/",
+    "note": "The site's own search form (GET, field q); www.abcr.de redirects to abcr.com. Checked 2026-11-05: results page for 62-53-3. Cart: the header's cart link."
   },
   {
     "name": "ChemPUR",
@@ -283,35 +334,39 @@
     "post": {
       "psuche": "{cas}"
     },
-    "note": "Search works only as a form POST (a link with ?psuche= shows an empty search; checked 2026-11-05 with 7440-50-8). The web page submits the form in a new tab; the script can't."
+    "note": "Search works only as a form POST (a link with ?psuche= shows an empty search; checked 2026-11-05 with 7440-50-8). The web page submits the form in a new tab; the script can't. No cart: ChemPUR takes orders through a 'Request for order' form on its search results, so the page's cart button reopens the search for each CAS number picked here."
   },
   {
     "name": "TCI Chemicals",
     "key": "tci",
     "enabled": true,
     "url": "https://www.tcichemicals.com/DE/de/search/?text={cas}",
-    "note": "The site's own search form (GET /DE/de/search/, field text), from the Internet Archive copy of 2026-07-16. Live site blocks scripted requests."
+    "cart": "https://www.tcichemicals.com/DE/de/cart",
+    "note": "The site's own search form (GET /DE/de/search/, field text), from the Internet Archive copy of 2026-07-16. Live site blocks scripted requests. Cart: the header's cart link in the same archive copy."
   },
   {
     "name": "Santa Cruz Biotechnology",
     "key": "scbt",
     "enabled": true,
     "url": "https://www.scbt.com/search?Ntt={cas}",
-    "note": "Search URL format seen in Internet Archive captures (2025, /search?Ntt=). Live site blocks scripted requests; a German /de/search path was not confirmed."
+    "cart": "https://www.scbt.com/cart",
+    "note": "Search URL format seen in Internet Archive captures (2025, /search?Ntt=). Live site blocks scripted requests; a German /de/search path was not confirmed. Cart: /cart is in the site's own page list (Internet Archive captures of its scripts, 2023-2026); not seen."
   },
   {
     "name": "BLD Pharm",
     "key": "bld",
     "enabled": true,
     "url": "https://www.bldpharm.de/search/Search.html?keyword={cas}",
-    "note": "What the site's search button opens (static/js/common.js), 2026-11-05."
+    "cart": "https://www.bldpharm.de/user/myCart.html",
+    "note": "What the site's search button opens (static/js/common.js), 2026-11-05. Cart: the header's Warenkorb link, 2026-11-06."
   },
   {
     "name": "Doug Discovery (Fluorochem)",
     "key": "doug",
     "enabled": true,
     "url": "https://fluorochem.co.uk/?s={cas}",
-    "note": "dougdiscovery.com redirects to fluorochem.co.uk. The site's own search form (GET / with field s; its SearchAction is ?s={search_term_string}), from the Internet Archive copy of 2026-04-12. Live site blocks scripted requests."
+    "cart": "https://fluorochem.co.uk/cart/",
+    "note": "dougdiscovery.com redirects to fluorochem.co.uk. The site's own search form (GET / with field s; its SearchAction is ?s={search_term_string}), from the Internet Archive copy of 2026-04-12. Live site blocks scripted requests. Cart: /cart/, Internet Archive capture of 2026-02-25; without a login it redirects to /my-account/."
   }
 ]
 </script>
@@ -386,6 +441,13 @@ const openedTabs = [];  // windows this page opened, so "Geöffnete Suchen schli
 let lastSearch = "";
 let strict = false;   // show input errors in red only after a submit or after leaving the field
 let example = false;
+let tracking = store.get("track", false) === true;
+const picks = (() => {  // [{cas, shop}]: the shop picked for each CAS number, in the order picked
+  const saved = store.get("picks", []);
+  return Array.isArray(saved) ? saved.filter((p) => p && typeof p.cas === "string" && typeof p.shop === "string") : [];
+})();
+const shopByKey = (key) => SHOPS.find((shop) => shop.key === key);
+const pickFor = (cas) => { const p = picks.find((x) => x.cas === cas); return p && shopByKey(p.shop) ? p.shop : ""; };
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -414,15 +476,18 @@ function postInto(tabName, shop, cas) {
 
 const mode = () => (document.querySelector('input[name="mode"]:checked') || {}).value || "tabs";
 
-/* Opens one search as a tab, or in "windows" mode as its own window (stacked with an offset).
-   The opener link is kept on purpose: without it the page could not close the tab later. */
+/* In "windows" mode each page gets its own window, stacked with an offset. */
+function windowFeatures(i) {
+  if (mode() !== "windows") return "";
+  const w = Math.min(1200, screen.availWidth - 120), h = Math.min(900, screen.availHeight - 120);
+  const left = (screen.availLeft || 0) + 40 + 32 * i, top = (screen.availTop || 0) + 40 + 32 * i;
+  return `popup,width=${w},height=${h},left=${left},top=${top}`;
+}
+
+/* Opens one search as a tab or window. The opener link is kept on purpose:
+   without it the page could not close the tab later. */
 function openSearch(shop, search, i) {
-  let features = "";
-  if (mode() === "windows") {
-    const w = Math.min(1200, screen.availWidth - 120), h = Math.min(900, screen.availHeight - 120);
-    const left = (screen.availLeft || 0) + 40 + 32 * i, top = (screen.availTop || 0) + 40 + 32 * i;
-    features = `popup,width=${w},height=${h},left=${left},top=${top}`;
-  }
+  const features = windowFeatures(i);
   if (!shop.post) return window.open(searchFor(shop, search.cas, search.purity).url, "_blank", features);
   const name = `cas-search-${shop.key}-${Date.now()}-${i}`;
   const tab = window.open("", name, features);
@@ -441,6 +506,15 @@ function closeOpened() {
   for (const tab of openedTabs) { try { tab.close(); } catch { /* not closable */ } }
   openedTabs.length = 0;
   updateCloseButton();
+}
+
+/* A plain click opens the link with window.open, so the page can close it later; otherwise the link works as usual. */
+function openOnClick(link, open) {
+  link.addEventListener("click", (event) => {
+    if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+    const tab = open();
+    if (tab) { event.preventDefault(); openedTabs.push(tab); updateCloseButton(); }
+  });
 }
 
 function hostOf(url) {
@@ -497,6 +571,18 @@ function buildRow(shop, search) {
   a.append(el("span", "name", shop.name), meta, el("span", "go", go));
   const li = el("li");
   li.append(a);
+  if (tracking && hasCas(shop)) {
+    const picked = !search.error && pickFor(search.cas) === shop.key;
+    const button = el("button", "pick", picked ? "Gewählt ✓" : "Wählen");
+    button.type = "button";
+    button.disabled = Boolean(search.error);
+    button.setAttribute("aria-pressed", String(picked));
+    button.setAttribute("aria-label", `${shop.name} wählen`);
+    button.addEventListener("click", () => pick(shop, search.cas));
+    a.classList.toggle("picked", picked);
+    li.className = "item";
+    li.append(button);
+  }
   return li;
 }
 
@@ -665,13 +751,17 @@ function renderBatch() {
   next.textContent = batchIndex < 0 ? "Start ▶" : "Weiter ▶";
   $("batch-list").replaceChildren(...batch.map((cas, i) => {
     const current = i === batchIndex, done = seen.has(i) && !current;
-    const chip = el("button", "cas-chip" + (current ? " current" : done ? " seen" : ""), done ? `${cas} ✓` : cas);
+    const picked = tracking ? pickFor(cas) : "";
+    const chip = el("button", "cas-chip" + (current ? " current" : done ? " seen" : "") + (picked ? " picked" : ""),
+      done || picked ? `${cas} ✓` : cas);
+    if (picked) chip.title = shopByKey(picked).name;
     chip.type = "button";
     chip.addEventListener("click", () => goTo(i));
     const li = el("li");
     li.append(chip);
     return li;
   }));
+  renderPicks();  // the record follows the list
 }
 
 function goTo(i) {
@@ -684,6 +774,170 @@ function goTo(i) {
   openAll();
   renderBatch();
   $("batch-list").children[i]?.scrollIntoView({ block: "nearest" });
+}
+
+/* Tracking: the shop picked for each CAS number, and the carts to open at the end */
+const picksStatus = $("picks-status");
+let clearTimer = 0;
+
+function setPicksStatus(text, tone) {
+  picksStatus.className = tone ? `status ${tone}` : "status";
+  picksStatus.textContent = text;
+}
+
+function savePicks() {
+  store.set("picks", picks);
+  render();
+  renderBatch();
+}
+
+function nextUnpicked(from) {
+  for (let i = from + 1; i < batch.length; i++) if (!pickFor(batch[i])) return i;
+  return -1;
+}
+
+/* Notes the shop, closes everything the page opened, and in a list goes on to the next CAS number
+   still to pick. Pressing Pick again on the picked shop undoes the pick. */
+function pick(shop, cas) {
+  setPicksStatus("");
+  const i = picks.findIndex((p) => p.cas === cas);
+  if (i >= 0 && picks[i].shop === shop.key) { picks.splice(i, 1); savePicks(); return; }
+  if (i >= 0) picks[i].shop = shop.key; else picks.push({ cas, shop: shop.key });
+  savePicks();
+  closeOpened();
+  if (batchIndex < 0 || batch[batchIndex] !== cas) return;
+  const next = nextUnpicked(batchIndex);
+  if (next >= 0) { goTo(next); return; }
+  const left = batch.filter((c) => !pickFor(c)).length;
+  setPicksStatus(left ? `Ende der Liste; ${left} CAS-Nummer${left === 1 ? "" : "n"} noch ohne Auswahl.`
+    : "Für jede CAS-Nummer der Liste ist ein Shop gewählt. Jetzt können die Warenkörbe geöffnet werden.", left ? "" : "ok");
+  $("picks").scrollIntoView({ block: "nearest" });
+}
+
+/* The list's CAS numbers in order, picked or not (once the list is in use), then picks made outside the list. */
+function recordRows() {
+  const listInUse = batchIndex >= 0 || batch.some((cas) => pickFor(cas));
+  const rows = listInUse ? batch.map((cas) => ({ cas, shop: pickFor(cas) })) : [];
+  for (const p of picks) {
+    if (shopByKey(p.shop) && !rows.some((r) => r.cas === p.cas)) rows.push({ cas: p.cas, shop: p.shop });
+  }
+  return rows;
+}
+
+const pickedShops = (rows) => SHOPS.filter((shop) => rows.some((r) => r.shop === shop.key));
+
+function showCas(cas) {
+  casInput.value = cas;
+  example = false;
+  strict = false;
+  render();
+  $("results-title").scrollIntoView({ block: "start" });
+}
+
+function buildGroup(shop, casList) {
+  const li = el("li", shop ? "group" : "group open");
+  const head = el("div", "group-head");
+  head.append(el("span", "name", shop ? shop.name : "Noch nicht gewählt"), el("span", "count", String(casList.length)));
+  if (shop && shop.cart) {
+    const link = el("a", "cart-link", "Warenkorb ↗");
+    link.href = shop.cart;
+    link.target = "_blank";
+    link.rel = "noopener";
+    openOnClick(link, () => window.open(shop.cart, "_blank", windowFeatures(0)));
+    head.append(link);
+  } else if (shop) {
+    head.append(el("span", "chip", "kein Warenkorb: über die Suche bestellen"));
+  }
+  const list = el("ul", "batch-list");
+  for (const cas of casList) {
+    const chip = el("button", "cas-chip", cas);
+    chip.type = "button";
+    chip.title = "Die Suchen für diese CAS-Nummer zeigen";
+    chip.addEventListener("click", () => showCas(cas));
+    const item = el("li");
+    item.append(chip);
+    list.append(item);
+  }
+  li.append(head, list);
+  return li;
+}
+
+function disarmClear() {
+  clearTimeout(clearTimer);
+  clearTimer = 0;
+  $("clear-picks").textContent = "Auswahl löschen";
+}
+
+function renderPicks() {
+  $("picks").hidden = !tracking;
+  if (!tracking) return;
+  const rows = recordRows();
+  const shops = pickedShops(rows);
+  const groups = shops.map((shop) => buildGroup(shop, rows.filter((r) => r.shop === shop.key).map((r) => r.cas)));
+  const open = rows.filter((r) => !r.shop).map((r) => r.cas);
+  if (open.length) groups.push(buildGroup(null, open));
+  if (!groups.length) groups.push(el("li", "empty", "Noch nichts gewählt."));
+  $("picks-groups").replaceChildren(...groups);
+  const n = shops.length;
+  $("open-carts").disabled = n === 0;
+  $("open-carts").textContent = n ? `Warenkörbe bei ${n} Shop${n === 1 ? "" : "s"} öffnen` : "Warenkörbe öffnen";
+  $("copy-picks").disabled = rows.length === 0;
+  $("clear-picks").disabled = picks.length === 0;
+  disarmClear();
+}
+
+/* Each picked shop's cart; a shop without one (ChemPUR) gets its search again for each CAS number picked there. */
+function openCarts() {
+  setPicksStatus("");
+  const rows = recordRows();
+  const jobs = [];
+  for (const shop of pickedShops(rows)) {
+    if (shop.cart) jobs.push((i) => window.open(shop.cart, "_blank", windowFeatures(i)));
+    else for (const r of rows.filter((x) => x.shop === shop.key)) jobs.push((i) => openSearch(shop, { cas: r.cas, purity: "" }, i));
+  }
+  let count = 0;
+  for (const [i, job] of jobs.entries()) {
+    const tab = job(i);
+    if (!tab) break;  // blocked: the browser would block the rest too
+    openedTabs.push(tab);
+    count++;
+  }
+  updateCloseButton();
+  if (count === jobs.length) return;
+  setPicksStatus(count === 0
+    ? "Dieser Browser lässt die Seite keine Tabs öffnen. Bitte die Warenkorb-Links oben benutzen."
+    : `${count} von ${jobs.length} geöffnet; der Browser hat die übrigen als Pop-ups blockiert. Die Warenkorb-Links oben benutzen oder Pop-ups für diese Seite erlauben (siehe Hilfe unten).`, "bad");
+}
+
+/* Tab-separated text, plus an HTML table that marks the CAS column as text: otherwise Excel reads
+   CAS numbers such as 75-09-2 or 68-12-2 as dates. */
+async function copyPicks() {
+  const rows = [["CAS-Nummer", "Lieferant"], ...recordRows().map((r) => [r.cas, r.shop ? shopByKey(r.shop).name : "nicht gewählt"])];
+  const text = rows.map((r) => r.join("\t")).join("\n");
+  const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+  const html = "<table>" + rows.map(([cas, shop]) =>
+    `<tr><td x:str style="mso-number-format:'\\@'">${esc(cas)}</td><td>${esc(shop)}</td></tr>`).join("") + "</table>";
+  const area = $("picks-copy");
+  let copied = false;
+  try {
+    await navigator.clipboard.write([new ClipboardItem({
+      "text/plain": new Blob([text], { type: "text/plain" }),
+      "text/html": new Blob([html], { type: "text/html" }),
+    })]);
+    copied = true;
+  } catch {
+    try { await navigator.clipboard.writeText(text); copied = true; } catch { /* select the text instead */ }
+  }
+  if (!copied) {
+    area.value = text;
+    area.hidden = false;
+    area.select();
+    try { copied = document.execCommand("copy"); } catch { copied = false; }
+  }
+  area.hidden = copied;
+  const n = rows.length - 1;
+  setPicksStatus(copied ? `${n} Zeile${n === 1 ? "" : "n"} und eine Kopfzeile kopiert. In Excel einfügen.`
+    : "Der Browser hat das Kopieren nicht erlaubt. Die Tabelle ist unten markiert: Strg+C drücken.", copied ? "ok" : "bad");
 }
 
 batchInput.value = store.get("list", "");
@@ -700,7 +954,32 @@ for (const type of ["dragover", "drop"]) {  // a file dropped next to the box mu
 }
 $("batch-file").addEventListener("change", (e) => { if (e.target.files[0]) loadFile(e.target.files[0]); e.target.value = ""; });
 $("batch-prev").addEventListener("click", () => goTo(batchIndex - 1));
-$("batch-next").addEventListener("click", () => goTo(batchIndex + 1));
+$("batch-next").addEventListener("click", () => {
+  const first = tracking && batchIndex < 0 ? nextUnpicked(-1) : -1;  // Start, tracking on: the first CAS number still to pick
+  goTo(first >= 0 ? first : batchIndex + 1);
+});
+
+const trackBox = $("track");
+trackBox.checked = tracking;
+trackBox.addEventListener("change", () => {
+  tracking = trackBox.checked;
+  store.set("track", tracking);
+  setPicksStatus("");
+  render();
+  renderBatch();
+});
+$("open-carts").addEventListener("click", openCarts);
+$("copy-picks").addEventListener("click", copyPicks);
+$("clear-picks").addEventListener("click", () => {
+  if (!clearTimer) {  // first press asks; a second press within 4 s clears
+    $("clear-picks").textContent = `Erneut drücken: ${picks.length} Eintr${picks.length === 1 ? "ag" : "äge"} löschen`;
+    clearTimer = setTimeout(disarmClear, 4000);
+    return;
+  }
+  picks.length = 0;
+  setPicksStatus("");
+  savePicks();
+});
 
 buildToggles();
 render();
